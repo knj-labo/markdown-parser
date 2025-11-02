@@ -6,13 +6,6 @@
   "author": "Kenji Labo",
   "license": "MIT",
   "homepage": "https://github.com/knj-labo/mdx-hybrid#readme",
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/knj-labo/mdx-hybrid.git"
-  },
-  "bugs": {
-    "url": "https://github.com/knj-labo/mdx-hybrid/issues"
-  },
   "scripts": {
     "prepare": "husky",
     "lint": "biome check --write .",
