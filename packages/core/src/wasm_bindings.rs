@@ -4,7 +4,7 @@ use wasm_bindgen::prelude::*;
 /// WASM用render関数
 ///
 /// JavaScriptから呼び出し可能なMarkdownレンダリング関数。
-/// PR0では基本的な機能を提供し、PR5でエラーハンドリングとパフォーマンスを改善予定。
+/// 現在は基本的な機能を提供し、PR3でエラーハンドリングとパフォーマンスを改善予定。
 #[wasm_bindgen]
 pub fn render_wasm(source: String, options: JsValue) -> Result<JsValue, JsValue> {
     // JavaScriptから渡されたオプションパラメータを安全に処理する
