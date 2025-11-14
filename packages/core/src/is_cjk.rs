@@ -1,6 +1,6 @@
-/// 包括的CJK文字判定 (Unicode 16準拠)
+/// 包括的CJK文字判定 (Unicode 16.0準拠)
 ///
-/// Unicode 16仕様に基づく最も包括的なCJK文字判定を提供します。
+/// Unicode 16.0仕様に基づく最も包括的なCJK文字判定を提供します。
 /// 文字レベルでの精密な判定により、Markdownスラッグ生成において最高精度のCJK文字検出を実現します。
 pub fn is_cjk(c: char) -> bool {
     matches!(

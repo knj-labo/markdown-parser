@@ -11,8 +11,9 @@ use std::collections::HashSet;
 /// ### CJK文字（中国語・日本語・韓国語）
 /// - 検出: `crate::is_cjk::is_cjk`を使用してCJK文字ブロックを識別
 /// - 保持: CJK文字は大文字小文字変換せずそのまま保持
-/// - 空白処理: CJK文字間の空白を除去して連続した表意文字列を作成
-///   - 例: `"日本語 の 見出し"` → `"日本語の見出し"`
+/// - 空白処理: すべての空白をハイフンに変換（GitHub標準に準拠）
+///   - 例: `"日本語 の 見出し"` → `"日本語-の-見出し"`
+/// - 句読点: CJK句読点（、。！？など）もCJK文字として保持
 ///
 /// ### ASCII英数字
 /// - 大文字小文字変換: すべてのASCII文字を小文字に変換
@@ -57,24 +58,17 @@ use std::collections::HashSet;
 pub fn slugify(text: &str, used_slugs: &mut HashSet<String>) -> String {
     let mut slug = String::with_capacity(text.len());
     let mut last_hyphen = false;
-    let mut prev_was_cjk = false;
 
     for ch in text.chars() {
         if crate::is_cjk::is_cjk(ch) {
-            // 直前にCJK→空白で生成されたハイフンがある場合は除去する。
-            if prev_was_cjk && last_hyphen {
-                slug.pop();
-            }
             slug.push(ch);
             last_hyphen = false;
-            prev_was_cjk = true;
             continue;
         }
 
         if ch.is_ascii_alphanumeric() {
             slug.push(ch.to_ascii_lowercase());
             last_hyphen = false;
-            prev_was_cjk = false;
             continue;
         }
 
@@ -85,7 +79,6 @@ pub fn slugify(text: &str, used_slugs: &mut HashSet<String>) -> String {
                 slug.push(lower_ch);
             }
             last_hyphen = false;
-            prev_was_cjk = false;
             continue;
         }
 
@@ -223,16 +216,16 @@ mod tests {
         assert_eq!(slugify("Hello    World", &mut used), "hello-world-1");
 
         let mut used = HashSet::new();
-        assert_eq!(slugify("こんにちは 世界", &mut used), "こんにちは世界");
+        assert_eq!(slugify("こんにちは 世界", &mut used), "こんにちは-世界");
 
         let mut used = HashSet::new();
-        assert_eq!(slugify("Mixed 文字 列", &mut used), "mixed-文字列");
+        assert_eq!(slugify("Mixed 文字 列", &mut used), "mixed-文字-列");
     }
 
     #[test]
-    fn removes_spaces_between_cjk() {
+    fn converts_spaces_to_hyphens_between_cjk() {
         let mut used = HashSet::new();
-        assert_eq!(slugify("日本語 の 見出し", &mut used), "日本語の見出し");
+        assert_eq!(slugify("日本語 の 見出し", &mut used), "日本語-の-見出し");
     }
 
     #[test]
@@ -315,11 +308,69 @@ mod tests {
     fn handles_mixed_cjk_scripts() {
         let mut used = HashSet::new();
         // Test that CJK characters from different scripts work together
-        assert_eq!(slugify("日本語 한글 漢字", &mut used), "日本語한글漢字");
+        assert_eq!(slugify("日本語 한글 漢字", &mut used), "日本語-한글-漢字");
 
         let mut used = HashSet::new();
         // Test CJK mixed with various separators
-        assert_eq!(slugify("日本語-한글_漢字", &mut used), "日本語한글漢字");
+        assert_eq!(slugify("日本語-한글_漢字", &mut used), "日本語-한글-漢字");
+    }
+
+    #[test]
+    fn mixed_cjk_ascii_patterns() {
+        // Pattern: CJK ASCII CJK
+        let mut used = HashSet::new();
+        assert_eq!(slugify("日本語 hello 世界", &mut used), "日本語-hello-世界");
+
+        // Pattern: ASCII CJK ASCII
+        let mut used = HashSet::new();
+        assert_eq!(
+            slugify("hello 日本語 world", &mut used),
+            "hello-日本語-world"
+        );
+
+        // Pattern: Multiple mixed words
+        let mut used = HashSet::new();
+        assert_eq!(
+            slugify("Rust で 作る MDX パーサー", &mut used),
+            "rust-で-作る-mdx-パーサー"
+        );
+    }
+
+    #[test]
+    fn cjk_with_numbers_and_symbols() {
+        let mut used = HashSet::new();
+        assert_eq!(slugify("API 設計 2024", &mut used), "api-設計-2024");
+
+        let mut used = HashSet::new();
+        assert_eq!(slugify("v1.0 リリース", &mut used), "v1-0-リリース");
+
+        let mut used = HashSet::new();
+        assert_eq!(slugify("Rust製MDXパーサー", &mut used), "rust製mdxパーサー");
+    }
+
+    #[test]
+    fn consecutive_spaces_collapse_to_single_hyphen() {
+        let mut used = HashSet::new();
+        assert_eq!(
+            slugify("日本語  の   見出し", &mut used),
+            "日本語-の-見出し"
+        );
+
+        let mut used = HashSet::new();
+        assert_eq!(slugify("hello    world", &mut used), "hello-world");
+    }
+
+    #[test]
+    fn cjk_punctuation_handling() {
+        // CJK punctuation is treated as CJK characters and preserved
+        let mut used = HashSet::new();
+        assert_eq!(slugify("こんにちは、世界", &mut used), "こんにちは、世界");
+
+        let mut used = HashSet::new();
+        assert_eq!(slugify("日本語。タイトル", &mut used), "日本語。タイトル");
+
+        let mut used = HashSet::new();
+        assert_eq!(slugify("你好！世界？", &mut used), "你好！世界？");
     }
 
     #[test]
